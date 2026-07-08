@@ -130,8 +130,8 @@ async def portal_stats(
     tenant: Tenant = Depends(get_portal_tenant),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.now(timezone.utc)
-    period_start = tenant.billing_period_start or now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    now = datetime.utcnow()
+    period_start = (tenant.billing_period_start or now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)).replace(tzinfo=None)
 
     # Subjects
     active_subjects = await db.scalar(

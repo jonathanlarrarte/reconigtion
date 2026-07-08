@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -15,8 +15,8 @@ router = APIRouter(prefix="/stats", tags=["Stats"])
 
 def _billing_period_start(tenant: Tenant) -> datetime:
     if tenant.billing_period_start:
-        return tenant.billing_period_start
-    now = datetime.now(timezone.utc)
+        return tenant.billing_period_start.replace(tzinfo=None)
+    now = datetime.utcnow()
     return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
 

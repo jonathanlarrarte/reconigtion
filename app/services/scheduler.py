@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -17,7 +17,7 @@ async def reset_monthly_counters() -> None:
     from app.db.base import AsyncSessionLocal
     from app.models.tenant import Tenant
 
-    period_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    period_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
