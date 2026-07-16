@@ -78,8 +78,8 @@ export default function DocsPage() {
       {/* ── Índice rápido ─────────────────────────────────────────────────── */}
       <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
         <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Índice</p>
-        <div className="grid grid-cols-2 gap-1 text-xs text-indigo-600">
-          {['#flujo', '#endpoints', '#liveness', '#errores', '#ejemplos', '#tecnologias'].map(h => (
+        <div className="grid grid-cols-3 gap-1 text-xs text-indigo-600">
+          {['#flujo', '#endpoints', '#liveness', '#widget', '#ejemplos', '#errores', '#tecnologias'].map(h => (
             <a key={h} href={h} className="hover:underline">{h}</a>
           ))}
         </div>
@@ -234,8 +234,404 @@ curl -X POST https://api.tudominio.com/v1/faces/authenticate/user123 \\
         </div>
       </Section>
 
+      {/* ── Widget embebible ──────────────────────────────────────────────── */}
+      <Section title="Widget embebible (iframe)" id="widget">
+        <div className="space-y-5 pt-2">
+
+          <div className="text-sm text-slate-600 space-y-2">
+            <p>
+              El widget es una página HTML completa servida por la API que puedes incrustar en cualquier sistema
+              mediante un <code className="bg-slate-100 px-1 rounded border text-slate-800">&lt;iframe&gt;</code>.
+              Incluye cámara, detección automática de rostro, liveness y anti-spoofing listos para usar.
+              Los resultados se reciben vía{' '}
+              <code className="bg-slate-100 px-1 rounded border text-slate-800">window.postMessage</code> en la página padre.
+            </p>
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
+              <strong>¿Cuándo usar el widget vs. la API directa?</strong><br/>
+              Usa el <strong>widget</strong> cuando necesitas una UI lista sin construir la interfaz de cámara — ideal para POS,
+              intranets, sistemas legacy, apps sin React.<br/>
+              Usa la <strong>API directa</strong> si ya tienes tu propia cámara o necesitas personalización total del flujo.
+            </div>
+          </div>
+
+          {/* URL y parámetros */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">URL del widget y parámetros</p>
+            <Code lang="texto">{`https://TU_SERVIDOR/widget?api_key=fid_xxx&external_id=EMP001&mode=auth&api_url=https://TU_SERVIDOR`}</Code>
+            <table className="w-full text-xs mt-3">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-200">
+                  <th className="pb-2 font-semibold">Parámetro</th>
+                  <th className="pb-2 font-semibold">Requerido</th>
+                  <th className="pb-2 font-semibold">Descripción</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {[
+                  ['api_key',     'Sí',  'API key del tenant (fid_...)'],
+                  ['external_id', 'Sí',  'ID del usuario en tu sistema: cédula, número de empleado, username…'],
+                  ['mode',        'No',  'auth (default) | enroll | liveness'],
+                  ['api_url',     'No',  'URL base del servidor. Default: mismo origen del iframe.'],
+                ].map(([p, r, d]) => (
+                  <tr key={p} className="text-slate-600">
+                    <td className="py-2 pr-3 font-mono text-indigo-600">{p}</td>
+                    <td className="py-2 pr-3">{r === 'Sí'
+                      ? <span className="text-red-500 font-semibold">{r}</span>
+                      : <span className="text-slate-400">{r}</span>}</td>
+                    <td className="py-2">{d}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* postMessage events */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Eventos postMessage que recibe la página padre
+            </p>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-200">
+                  <th className="pb-2 font-semibold">type</th>
+                  <th className="pb-2 font-semibold">mode</th>
+                  <th className="pb-2 font-semibold">Campos en event.data</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 text-slate-600">
+                <tr>
+                  <td className="py-2 pr-3 font-mono text-emerald-600">faceid_result</td>
+                  <td className="py-2 pr-3">auth</td>
+                  <td className="py-2 font-mono text-[10px] leading-loose">
+                    verified <span className="text-slate-400">(bool)</span>,{' '}
+                    confidence <span className="text-slate-400">(0–1)</span>,{' '}
+                    fraud_detected <span className="text-slate-400">(bool)</span>,{' '}
+                    subject_id, external_id
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-3 font-mono text-emerald-600">faceid_result</td>
+                  <td className="py-2 pr-3">enroll</td>
+                  <td className="py-2 font-mono text-[10px] leading-loose">
+                    enrolled <span className="text-slate-400">(bool)</span>,{' '}
+                    quality_score <span className="text-slate-400">(0–1)</span>,{' '}
+                    subject_id, external_id
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-3 font-mono text-emerald-600">faceid_result</td>
+                  <td className="py-2 pr-3">liveness</td>
+                  <td className="py-2 font-mono text-[10px]">passed <span className="text-slate-400">(bool)</span>, is_real</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-3 font-mono text-amber-600">faceid_cancel</td>
+                  <td className="py-2 pr-3">any</td>
+                  <td className="py-2 text-slate-400">El usuario presionó [ ✕ ] sin completar</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-3 font-mono text-red-500">faceid_error</td>
+                  <td className="py-2 pr-3">any</td>
+                  <td className="py-2 font-mono text-[10px]">error <span className="text-slate-400">(string — ej: &quot;No se pudo acceder a la cámara&quot;)</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* POS login example */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Ejemplo completo — Login POS con reconocimiento facial (HTML vanilla)
+            </p>
+            <p className="text-xs text-slate-500 mb-2">
+              Copia este archivo completo, reemplaza las dos constantes al inicio del script y tendrás un login funcional.
+            </p>
+            <Code lang="html">{`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Login POS</title>
+  <style>
+    body { font-family: sans-serif; display: flex; align-items: center;
+           justify-content: center; height: 100vh; margin: 0; background: #f1f5f9; }
+    .card { background: white; border-radius: 12px; padding: 32px;
+            width: 340px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    label { font-size: 13px; color: #64748b; }
+    input  { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0;
+             border-radius: 8px; margin: 6px 0 16px; font-size: 14px;
+             box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #4f46e5; color: white;
+             border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
+    button:hover { background: #4338ca; }
+
+    /* Overlay que contiene el iframe */
+    #overlay { display: none; position: fixed; inset: 0;
+               background: rgba(0,0,0,0.75); align-items: center;
+               justify-content: center; z-index: 9999; }
+    #overlay.visible { display: flex; }
+    #faceid-frame { width: 400px; height: 540px; border: none;
+                    border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.5); }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2 style="margin:0 0 4px;color:#1e293b">Ingreso al sistema</h2>
+  <p style="font-size:13px;color:#94a3b8;margin:0 0 24px">
+    Ingresa tu número de empleado y verifica tu identidad con tu rostro.
+  </p>
+  <label>Número de empleado</label>
+  <input id="emp-id" type="text" placeholder="Ej: EMP001" />
+  <button onclick="abrirWidget()">📷 Ingresar con reconocimiento facial</button>
+</div>
+
+<!-- Overlay con el widget FaceID -->
+<div id="overlay">
+  <iframe id="faceid-frame"
+          allow="camera"
+          allowfullscreen>
+  </iframe>
+</div>
+
+<script>
+  // ── Configura estos dos valores ──────────────────────────────────────
+  const API_KEY    = 'fid_TU_API_KEY_AQUI';  // API key del tenant
+  const SERVER_URL = 'https://TU_SERVIDOR';   // sin barra final
+  // ─────────────────────────────────────────────────────────────────────
+
+  function abrirWidget() {
+    const empId = document.getElementById('emp-id').value.trim();
+    if (!empId) { alert('Ingresa tu número de empleado'); return; }
+
+    const params = new URLSearchParams({
+      api_key:     API_KEY,
+      external_id: empId,
+      mode:        'auth',       // 'auth' para autenticar, 'enroll' para registrar
+      api_url:     SERVER_URL,
+    });
+    document.getElementById('faceid-frame').src = SERVER_URL + '/widget?' + params;
+    document.getElementById('overlay').classList.add('visible');
+  }
+
+  function cerrarWidget() {
+    document.getElementById('overlay').classList.remove('visible');
+    document.getElementById('faceid-frame').src = '';  // libera la cámara
+  }
+
+  // Cerrar al hacer clic fuera del iframe
+  document.getElementById('overlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarWidget();
+  });
+
+  // ── Recibir el resultado del widget ──────────────────────────────────
+  window.addEventListener('message', function(event) {
+    const d = event.data;
+    if (!d || !d.type) return;
+
+    if (d.type === 'faceid_result' && d.mode === 'auth') {
+      cerrarWidget();
+
+      if (d.verified && !d.fraud_detected) {
+        // ✅ ACCESO CONCEDIDO
+        console.log('Empleado autenticado:', d.external_id,
+                    'Confianza:', (d.confidence * 100).toFixed(1) + '%');
+
+        // Redirigir al sistema POS (reemplaza esta línea)
+        window.location.href = '/pos/dashboard?emp=' + d.external_id;
+
+      } else if (d.fraud_detected) {
+        alert('⚠️ Fraude detectado. El intento fue registrado.');
+      } else {
+        alert('❌ Rostro no reconocido.\\n\\nAsegúrate de estar registrado y de '
+              + 'tener buena iluminación.');
+      }
+    }
+
+    if (d.type === 'faceid_cancel') cerrarWidget();
+
+    if (d.type === 'faceid_error') {
+      cerrarWidget();
+      alert('Error en el widget: ' + d.error);
+    }
+  });
+</script>
+
+</body>
+</html>`}</Code>
+          </div>
+
+          {/* Enrollment example */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Ejemplo — Enrolar un empleado (panel de administración interno)
+            </p>
+            <p className="text-xs text-slate-500 mb-2">
+              El enrolamiento se hace una sola vez por empleado — normalmente en un panel admin, no en el login.
+              Solo cambia <code className="bg-slate-100 px-1 rounded border text-slate-800">mode=&apos;enroll&apos;</code> y escucha{' '}
+              <code className="bg-slate-100 px-1 rounded border text-slate-800">faceid_result</code> con{' '}
+              <code className="bg-slate-100 px-1 rounded border text-slate-800">mode === &apos;enroll&apos;</code>.
+            </p>
+            <Code lang="javascript">{`// Abrir widget en modo enrolamiento
+function enrolarEmpleado(empId) {
+  const params = new URLSearchParams({
+    api_key:     API_KEY,
+    external_id: empId,
+    mode:        'enroll',   // ← única diferencia vs. autenticación
+    api_url:     SERVER_URL,
+  });
+  document.getElementById('faceid-frame').src = SERVER_URL + '/widget?' + params;
+  document.getElementById('overlay').classList.add('visible');
+}
+
+// Escuchar el resultado del enrolamiento
+window.addEventListener('message', function(event) {
+  const d = event.data;
+  if (d.type === 'faceid_result' && d.mode === 'enroll') {
+    cerrarWidget();
+    if (d.enrolled) {
+      // ✅ Empleado registrado
+      console.log('Enrolado:', d.external_id,
+                  'Calidad:', (d.quality_score * 100).toFixed(0) + '%',
+                  'subject_id:', d.subject_id);
+      alert('✅ Empleado ' + d.external_id + ' registrado exitosamente.');
+    } else {
+      // ❌ Falló (cara no detectada, calidad baja…)
+      alert('❌ No se pudo registrar. Intenta con mejor iluminación y '
+            + 'sin lentes ni objetos en el rostro.');
+    }
+  }
+  if (d.type === 'faceid_cancel' || d.type === 'faceid_error') cerrarWidget();
+});`}</Code>
+          </div>
+
+          {/* React example */}
+          <div>
+            <p className="text-xs font-semibold text-slate-500 uppercase mb-2">
+              Ejemplo — Componente React / Next.js reutilizable
+            </p>
+            <Code lang="tsx">{`// components/FaceWidget.tsx
+import { useEffect } from 'react'
+
+const FACEID_URL = process.env.NEXT_PUBLIC_FACEID_URL ?? 'https://TU_SERVIDOR'
+const API_KEY    = process.env.NEXT_PUBLIC_FACEID_KEY  ?? ''
+
+export interface FaceResult {
+  type:            'faceid_result' | 'faceid_cancel' | 'faceid_error'
+  mode:            'auth' | 'enroll' | 'liveness'
+  // auth
+  verified?:       boolean
+  confidence?:     number
+  fraud_detected?: boolean
+  // enroll
+  enrolled?:       boolean
+  quality_score?:  number
+  // comunes
+  subject_id?:     string
+  external_id?:    string
+  error?:          string
+}
+
+interface Props {
+  externalId: string
+  mode?:      'auth' | 'enroll' | 'liveness'
+  onResult:   (r: FaceResult) => void
+  onClose:    () => void
+}
+
+export function FaceWidget({ externalId, mode = 'auth', onResult, onClose }: Props) {
+  const params = new URLSearchParams({
+    api_key: API_KEY, external_id: externalId, mode, api_url: FACEID_URL,
+  })
+  const src = FACEID_URL + '/widget?' + params
+
+  useEffect(() => {
+    function handler(e: MessageEvent<FaceResult>) {
+      if (!e.data?.type?.startsWith('faceid')) return
+      onResult(e.data)
+      if (e.data.type !== 'faceid_result') return  // cancel/error ya cerró
+      onClose()
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [onResult, onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/75 flex items-center justify-center z-50"
+      onClick={onClose}  // clic fuera cierra
+    >
+      <iframe
+        src={src}
+        allow="camera"
+        onClick={(e) => e.stopPropagation()}
+        className="w-[400px] h-[540px] rounded-2xl border-0 shadow-2xl"
+      />
+    </div>
+  )
+}
+
+// ── Uso en una página de login ────────────────────────────────────────────────
+//
+// const [widgetOpen, setWidgetOpen] = useState(false)
+// const [empleadoId, setEmpleadoId] = useState('')
+//
+// function handleResult(r: FaceResult) {
+//   if (r.type === 'faceid_result' && r.mode === 'auth') {
+//     if (r.verified && !r.fraud_detected) {
+//       router.push('/dashboard')   // ← acceso concedido
+//     } else {
+//       toast.error(r.fraud_detected ? 'Fraude detectado' : 'Rostro no reconocido')
+//     }
+//   }
+//   setWidgetOpen(false)
+// }
+//
+// return (
+//   <>
+//     <button onClick={() => setWidgetOpen(true)}>Ingresar con rostro</button>
+//     {widgetOpen && (
+//       <FaceWidget
+//         externalId={empleadoId}
+//         mode="auth"
+//         onResult={handleResult}
+//         onClose={() => setWidgetOpen(false)}
+//       />
+//     )}
+//   </>
+// )`}</Code>
+          </div>
+
+          {/* Security notes */}
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-xs text-amber-800 space-y-2">
+            <p className="font-semibold text-sm">Notas de seguridad importantes</p>
+            <ul className="space-y-2 list-disc list-inside leading-relaxed">
+              <li>
+                El iframe <strong>debe</strong> tener el atributo{' '}
+                <code className="bg-white px-1 rounded border">allow=&quot;camera&quot;</code> — sin él el navegador
+                bloqueará el acceso a la webcam.
+              </li>
+              <li>
+                La API key queda visible en la URL del iframe. Es aceptable: la API key solo permite
+                enrolar/autenticar en tu tenant, nunca acceso de administrador ni datos de otros tenants.
+              </li>
+              <li>
+                <strong>Valida el resultado en tu backend</strong> para acciones críticas (crear sesión, abrir puerta,
+                procesar pago). Los eventos <code className="bg-white px-1 rounded border">postMessage</code> pueden
+                ser falsificados por JavaScript en la misma página. El flujo seguro es:{' '}
+                <em>widget → postMessage → tu backend llama{' '}
+                <code className="bg-white px-1 rounded border">POST /v1/faces/authenticate</code> → crea sesión</em>.
+              </li>
+              <li>
+                Para POS o sistemas internos sin acceso a internet, asegúrate de que el servidor FaceID sea
+                accesible desde la red local donde corre el POS.
+              </li>
+            </ul>
+          </div>
+
+        </div>
+      </Section>
+
       {/* ── Ejemplos de integración ───────────────────────────────────────── */}
-      <Section title="Ejemplos de integración" id="ejemplos">
+      <Section title="Ejemplos de integración (API directa)" id="ejemplos">
         <div className="space-y-4 pt-2">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase mb-2">JavaScript / TypeScript</p>
