@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
-import { ShieldCheck, XCircle, Users, AlertTriangle, Activity, Wifi, WifiOff, LogOut, RefreshCw, DollarSign, Eye } from 'lucide-react'
+import { ShieldCheck, XCircle, Users, AlertTriangle, Activity, Wifi, WifiOff, LogOut, RefreshCw, DollarSign, Eye, List } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { DetailedStats } from '@/lib/types'
 
@@ -141,6 +141,12 @@ export default function PortalDashboard() {
             </div>
             <button onClick={refresh} disabled={refreshing} className="text-slate-400 hover:text-slate-600 transition-colors">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={() => router.push('/portal/dashboard/logs')}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-600 transition-colors border border-slate-200 px-2.5 py-1.5 rounded-lg hover:border-indigo-200 hover:bg-indigo-50"
+            >
+              <List className="w-3.5 h-3.5" /> Ver logs
             </button>
             <button onClick={logout} className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-600 transition-colors">
               <LogOut className="w-3.5 h-3.5" /> Salir

@@ -1,8 +1,9 @@
+import math
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, cast, Date, case
@@ -42,6 +43,26 @@ class DailyStat(BaseModel):
     successful: int
     failed: int
     fraud: int
+
+
+class AuthLogEntry(BaseModel):
+    id: uuid.UUID
+    external_id: Optional[str] = None
+    success: bool
+    confidence_score: Optional[float] = None
+    fraud_detected: Optional[bool] = None
+    is_real_face: Optional[bool] = None
+    spoofing_score: Optional[float] = None
+    ip_address: Optional[str] = None
+    created_at: datetime
+    amount_charged: Optional[float] = None
+
+
+class LogsResponse(BaseModel):
+    items: list[AuthLogEntry]
+    total: int
+    page: int
+    pages: int
 
 
 class DetailedStatsResponse(BaseModel):
@@ -226,6 +247,61 @@ async def portal_stats(
         daily_stats=daily_stats,
         api_online=True,
         api_key_masked=masked,
+    )
+
+
+@router.get("/logs", response_model=LogsResponse)
+async def portal_logs(
+    tenant: Tenant = Depends(get_portal_tenant),
+    db: AsyncSession = Depends(get_db),
+    page: int = Query(1, ge=1),
+    limit: int = Query(50, ge=1, le=200),
+    success: Optional[bool] = None,
+    fraud_only: bool = False,
+    external_id: Optional[str] = Query(None),
+):
+    conditions = [AuthAttempt.tenant_id == tenant.id]
+    if success is not None:
+        conditions.append(AuthAttempt.success == success)
+    if fraud_only:
+        conditions.append(AuthAttempt.deepfake_detected == True)  # noqa: E712
+    if external_id:
+        conditions.append(FaceSubject.external_id.ilike(f"%{external_id}%"))
+
+    total = await db.scalar(
+        select(func.count(AuthAttempt.id))
+        .outerjoin(FaceSubject, AuthAttempt.subject_id == FaceSubject.id)
+        .where(*conditions)
+    ) or 0
+
+    rows = (await db.execute(
+        select(AuthAttempt, FaceSubject.external_id.label("ext_id"))
+        .outerjoin(FaceSubject, AuthAttempt.subject_id == FaceSubject.id)
+        .where(*conditions)
+        .order_by(AuthAttempt.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+    )).all()
+
+    return LogsResponse(
+        items=[
+            AuthLogEntry(
+                id=r.AuthAttempt.id,
+                external_id=r.ext_id,
+                success=r.AuthAttempt.success,
+                confidence_score=r.AuthAttempt.confidence_score,
+                fraud_detected=r.AuthAttempt.deepfake_detected,
+                is_real_face=r.AuthAttempt.is_real_face,
+                spoofing_score=r.AuthAttempt.spoofing_score,
+                ip_address=r.AuthAttempt.ip_address,
+                created_at=r.AuthAttempt.created_at,
+                amount_charged=r.AuthAttempt.amount_charged,
+            )
+            for r in rows
+        ],
+        total=total,
+        page=page,
+        pages=max(1, math.ceil(total / limit)),
     )
 
 

@@ -119,6 +119,26 @@ export interface AuthResponse {
   timestamp: string
 }
 
+export interface AuthLogEntry {
+  id: string
+  external_id: string | null
+  success: boolean
+  confidence_score: number | null
+  fraud_detected: boolean | null
+  is_real_face: boolean | null
+  spoofing_score: number | null
+  ip_address: string | null
+  created_at: string
+  amount_charged: number | null
+}
+
+export interface LogsResponse {
+  items: AuthLogEntry[]
+  total: number
+  page: number
+  pages: number
+}
+
 export interface Subject {
   id: string
   external_id: string

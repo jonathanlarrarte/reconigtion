@@ -1,4 +1,4 @@
-import type { AuthResponse, EnrollResponse, StatsResponse, Tenant, TenantCreate, TenantUpdate, DetailedStats, PortalToken } from './types'
+import type { AuthResponse, EnrollResponse, StatsResponse, Tenant, TenantCreate, TenantUpdate, DetailedStats, PortalToken, LogsResponse } from './types'
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
@@ -134,6 +134,25 @@ export const api = {
 
   async portalStats(token: string): Promise<DetailedStats> {
     const res = await fetch(`${BASE}/v1/portal/stats`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+    return handleResponse(res)
+  },
+
+  async portalLogs(
+    token: string,
+    page = 1,
+    limit = 50,
+    success?: boolean,
+    fraudOnly?: boolean,
+    externalId?: string,
+  ): Promise<LogsResponse> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+    if (success !== undefined) params.set('success', String(success))
+    if (fraudOnly) params.set('fraud_only', 'true')
+    if (externalId) params.set('external_id', externalId)
+    const res = await fetch(`${BASE}/v1/portal/logs?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
       cache: 'no-store',
     })
