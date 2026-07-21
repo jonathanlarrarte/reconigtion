@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, Copy, Check, FlaskConical, AlertTriangle, Shield, ShieldOff, Save } from 'lucide-react'
+import { ChevronLeft, Copy, Check, FlaskConical, AlertTriangle, Shield, ShieldOff, Save, KeyRound, Eye, EyeOff, RefreshCw } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Tenant, StatsResponse } from '@/lib/types'
 
@@ -25,6 +25,12 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
   const [copied, setCopied] = useState(false)
   const [deactivating, setDeactivating] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [resetOpen,    setResetOpen]    = useState(false)
+  const [newPassword,  setNewPassword]  = useState('')
+  const [showPass,     setShowPass]     = useState(false)
+  const [resetting,    setResetting]    = useState(false)
+  const [resetDone,    setResetDone]    = useState<string | null>(null)
+  const [copiedPass,   setCopiedPass]   = useState(false)
   const [saving, setSaving] = useState(false)
   const [editLimits, setEditLimits] = useState({ auth: 0, enroll: 0, liveness: 0 })
   const [editAntispoof, setEditAntispoof] = useState(true)
@@ -89,6 +95,36 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setSaving(false)
     }
+  }
+
+  function generatePassword() {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789!@#$'
+    const arr = new Uint8Array(16)
+    crypto.getRandomValues(arr)
+    setNewPassword(Array.from(arr).map(b => chars[b % chars.length]).join(''))
+    setShowPass(true)
+  }
+
+  async function handleResetPassword() {
+    if (!tenant || newPassword.length < 8) return
+    setResetting(true)
+    try {
+      await api.resetTenantPassword(tenant.id, newPassword)
+      setResetDone(newPassword)
+      setResetOpen(false)
+      setNewPassword('')
+    } catch (e: unknown) {
+      alert((e as Error).message)
+    } finally {
+      setResetting(false)
+    }
+  }
+
+  async function copyNewPass() {
+    if (!resetDone) return
+    await navigator.clipboard.writeText(resetDone)
+    setCopiedPass(true)
+    setTimeout(() => setCopiedPass(false), 2000)
   }
 
   if (loading) return <div className="p-12 text-sm text-slate-400">Cargando...</div>
@@ -256,18 +292,96 @@ export default function TenantDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      {/* Portal access info */}
+      {/* Portal access + reset password */}
       {tenant.portal_username && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-2">
-          <h2 className="text-sm font-semibold text-slate-700">Acceso al Portal</h2>
-          <div className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
-            <div className="space-y-0.5">
-              <p className="text-xs text-slate-500">Usuario portal</p>
-              <code className="text-sm font-mono text-slate-700">{tenant.portal_username}</code>
-            </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">Acceso al Portal</h2>
             <a href="/portal" target="_blank" rel="noreferrer"
               className="text-xs text-indigo-600 hover:underline">Abrir portal →</a>
           </div>
+
+          <div className="flex items-center justify-between bg-slate-50 rounded-lg px-4 py-3">
+            <div className="space-y-0.5">
+              <p className="text-xs text-slate-500">Usuario</p>
+              <code className="text-sm font-mono text-slate-700">{tenant.portal_username}</code>
+            </div>
+            <button
+              onClick={() => { setResetOpen(o => !o); setResetDone(null); setNewPassword('') }}
+              className="flex items-center gap-1.5 text-xs border border-slate-200 text-slate-600 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              <KeyRound className="w-3.5 h-3.5" /> Restablecer contraseña
+            </button>
+          </div>
+
+          {/* Contraseña restablecida con éxito */}
+          {resetDone && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 space-y-2">
+              <p className="text-xs font-semibold text-emerald-700">✓ Contraseña actualizada — entrégala al cliente:</p>
+              <div className="flex items-center justify-between bg-white rounded border border-emerald-200 px-3 py-2 gap-3">
+                <code className="text-sm font-mono text-slate-800 break-all">{resetDone}</code>
+                <button onClick={copyNewPass} className="shrink-0 text-slate-400 hover:text-emerald-600 transition-colors">
+                  {copiedPass ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-emerald-600">Copia esta contraseña ahora — no se mostrará de nuevo.</p>
+            </div>
+          )}
+
+          {/* Formulario inline de reset */}
+          {resetOpen && (
+            <div className="border border-slate-200 rounded-lg p-4 space-y-3 bg-slate-50">
+              <p className="text-xs font-semibold text-slate-600">Nueva contraseña para <span className="text-slate-800">{tenant.portal_username}</span></p>
+
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="Mínimo 8 caracteres"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    className="w-full pr-10 pl-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPass(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={generatePassword}
+                  title="Generar contraseña segura"
+                  className="flex items-center gap-1.5 text-xs border border-slate-200 bg-white text-slate-600 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> Generar
+                </button>
+              </div>
+
+              {newPassword.length > 0 && newPassword.length < 8 && (
+                <p className="text-xs text-red-500">Mínimo 8 caracteres ({newPassword.length}/8)</p>
+              )}
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => { setResetOpen(false); setNewPassword('') }}
+                  className="text-xs text-slate-500 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-white transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleResetPassword}
+                  disabled={resetting || newPassword.length < 8}
+                  className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white rounded-lg px-4 py-1.5 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  {resetting ? 'Guardando...' : 'Confirmar cambio'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

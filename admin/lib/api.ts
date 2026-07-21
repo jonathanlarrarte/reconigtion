@@ -65,6 +65,15 @@ export const api = {
     return handleResponse(res)
   },
 
+  async resetTenantPassword(id: string, newPassword: string): Promise<Tenant> {
+    const res = await fetch(`${BASE}/v1/admin/tenants/${id}/reset-password`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ new_password: newPassword }),
+    })
+    return handleResponse(res)
+  },
+
   // ── Face API (requires X-API-Key) ─────────────────────────────────────────
   async getStats(apiKey: string, baseUrl = BASE): Promise<StatsResponse> {
     const res = await fetch(`${baseUrl}/v1/stats`, {

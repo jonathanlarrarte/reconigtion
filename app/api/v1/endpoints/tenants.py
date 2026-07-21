@@ -59,6 +59,10 @@ class TenantUpdate(BaseModel):
     plan: Optional[str] = None
 
 
+class PortalPasswordReset(BaseModel):
+    new_password: str
+
+
 @router.post("/", response_model=TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db)):
     existing = (await db.execute(select(Tenant).where(Tenant.slug == payload.slug))).scalar_one_or_none()
@@ -132,6 +136,22 @@ async def deactivate_tenant(tenant_id: uuid.UUID, db: AsyncSession = Depends(get
     if not tenant:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     tenant.is_active = False
+    return tenant
+
+
+@router.patch("/{tenant_id}/reset-password", response_model=TenantOut)
+async def reset_portal_password(
+    tenant_id: uuid.UUID,
+    payload: PortalPasswordReset,
+    db: AsyncSession = Depends(get_db),
+):
+    if len(payload.new_password) < 8:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="La contraseña debe tener al menos 8 caracteres")
+    tenant = (await db.execute(select(Tenant).where(Tenant.id == tenant_id))).scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
+    tenant.portal_password_hash = pwd_context.hash(payload.new_password)
+    await db.flush()
     return tenant
 
 
