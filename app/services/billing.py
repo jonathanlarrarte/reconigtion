@@ -8,14 +8,14 @@ class BillingService:
     async def check_limits(self, tenant: Tenant, operation: str) -> tuple[bool, str]:
         if operation == "enrollment":
             if (tenant.current_month_enrollments or 0) >= tenant.monthly_enroll_limit:
-                return False, f"Monthly enrollment limit reached ({tenant.monthly_enroll_limit}). Upgrade your plan."
+                return False, f"Límite mensual de enrolamientos alcanzado ({tenant.monthly_enroll_limit}). Contacta al administrador para ampliar tu plan."
         elif operation == "auth":
             if (tenant.current_month_auths or 0) >= tenant.monthly_auth_limit:
-                return False, f"Monthly auth limit reached ({tenant.monthly_auth_limit}). Upgrade your plan."
+                return False, f"Límite mensual de autenticaciones alcanzado ({tenant.monthly_auth_limit}). Contacta al administrador para ampliar tu plan."
         elif operation == "liveness":
             limit = tenant.monthly_liveness_limit or 500
             if (tenant.current_month_liveness_checks or 0) >= limit:
-                return False, f"Monthly liveness limit reached ({limit}). Upgrade your plan."
+                return False, f"Límite mensual de verificaciones de vida alcanzado ({limit}). Contacta al administrador para ampliar tu plan."
         return True, ""
 
     async def record_enrollment(self, tenant: Tenant, db: AsyncSession) -> float:

@@ -36,13 +36,13 @@ async def _validate_image(file: UploadFile) -> bytes:
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Image must be JPEG, PNG or WebP. Got: {file.content_type}",
+            detail=f"Formato de imagen no válido. Se aceptan JPEG, PNG y WebP. Tipo recibido: {file.content_type}",
         )
     image_bytes = await file.read()
     if len(image_bytes) > MAX_IMAGE_SIZE_MB * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"Image must be smaller than {MAX_IMAGE_SIZE_MB}MB",
+            detail=f"La imagen supera el tamaño máximo permitido de {MAX_IMAGE_SIZE_MB}MB.",
         )
     return image_bytes
 
@@ -76,20 +76,20 @@ async def enroll_face(
     if not result["face_detected"]:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="No face detected in the image. Ensure the face is clearly visible and well-lit.",
+            detail="No se detectó ningún rostro en la imagen. Asegúrate de que el rostro esté centrado, bien iluminado y sin obstrucciones.",
         )
 
     if not result["is_real_face"]:
         logger.warning(f"Spoofing attempt during enrollment: tenant={tenant.slug} external_id={external_id}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Liveness check failed. The image does not appear to be a real face.",
+            detail="La imagen no parece ser un rostro real. Usa una foto tomada en vivo, no una imagen impresa ni en pantalla.",
         )
 
     if result["quality_score"] < settings.FACE_QUALITY_MIN:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Image quality too low (score: {result['quality_score']:.2f}). Use a clearer photo.",
+            detail=f"Calidad de imagen insuficiente (puntaje: {result['quality_score']:.2f}). Usa una foto más nítida con buena iluminación.",
         )
 
     stmt = select(FaceSubject).where(
@@ -140,7 +140,7 @@ async def enroll_face(
         enrolled=True,
         quality_score=result["quality_score"],
         is_real_face=result["is_real_face"],
-        message="Face enrolled successfully",
+        message="Rostro registrado exitosamente.",
         amount_charged=amount,
         request_id=request_id,
     )
@@ -210,7 +210,7 @@ async def authenticate_face(
     if not subject:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No enrolled face found for external_id='{external_id}'",
+            detail=f"El usuario '{external_id}' no tiene un rostro registrado. Debe enrolarse primero.",
         )
 
     # Advertir si el detector cambió desde el enrolamiento — embeddings incompatibles
@@ -339,7 +339,7 @@ async def delete_subject(
     subject = (await db.execute(stmt)).scalar_one_or_none()
 
     if not subject:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subject not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Usuario no encontrado.")
 
     subject.is_active = False
     subject.face_embedding = None
