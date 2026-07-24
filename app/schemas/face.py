@@ -29,6 +29,12 @@ class AuthResponse(BaseModel):
     timestamp: datetime
 
 
+class SubjectStatus(BaseModel):
+    external_id: str
+    enrolled: bool
+    subject_id: Optional[uuid.UUID] = None
+
+
 class SubjectOut(BaseModel):
     id: uuid.UUID
     external_id: str

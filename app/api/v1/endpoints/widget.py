@@ -272,7 +272,14 @@ async function callApi() {
       res = await fetch(url, { method:'POST', headers, body:form })
     }
     const data = await res.json()
-    if (!res.ok) throw new Error(data.detail || 'HTTP ' + res.status)
+    if (!res.ok) {
+      if (res.status === 404 && MODE === 'auth') {
+        showErr('Usuario no enrolado. Debe registrar su rostro primero.')
+        pm({ type:'faceid_not_enrolled', enrolled:false, external_id:EXTERNAL_ID })
+        return
+      }
+      throw new Error(data.detail || 'HTTP ' + res.status)
+    }
     if (MODE === 'enroll') {
       showResult(data.enrolled?C:'#ff3366', data.enrolled?'✓':'✗',
         data.enrolled?'ENROLADO':'FALLO_ENROLAMIENTO', 'CALIDAD: '+Math.round((data.quality_score||0)*100)+'%')

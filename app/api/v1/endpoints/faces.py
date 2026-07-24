@@ -17,7 +17,7 @@ from app.db.base import get_db
 from app.models.tenant import Tenant
 from app.models.face_subject import FaceSubject
 from app.models.audit import AuthAttempt, AuditLog
-from app.schemas.face import EnrollResponse, AuthResponse, SubjectOut
+from app.schemas.face import EnrollResponse, AuthResponse, SubjectOut, SubjectStatus
 from app.core.config import settings
 from app.core.security import get_current_tenant
 from app.services.billing import billing_service
@@ -323,6 +323,27 @@ async def list_subjects(
     )
     subjects = (await db.execute(stmt)).scalars().all()
     return subjects
+
+
+@router.get("/subjects/{external_id}", response_model=SubjectStatus)
+async def get_subject_status(
+    external_id: str,
+    db: AsyncSession = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    """Consulta si un usuario tiene rostro registrado. Nunca lanza 404 — siempre retorna enrolled: bool."""
+    stmt = select(FaceSubject).where(
+        FaceSubject.tenant_id == tenant.id,
+        FaceSubject.external_id == external_id,
+        FaceSubject.is_active == True,
+    )
+    subject = (await db.execute(stmt)).scalar_one_or_none()
+    enrolled = subject is not None and bool(subject.is_enrolled)
+    return SubjectStatus(
+        external_id=external_id,
+        enrolled=enrolled,
+        subject_id=subject.id if subject else None,
+    )
 
 
 @router.delete("/subjects/{external_id}", status_code=status.HTTP_204_NO_CONTENT)
