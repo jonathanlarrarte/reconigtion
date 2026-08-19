@@ -79,7 +79,7 @@ export default function DocsPage() {
       <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
         <p className="text-xs font-semibold text-indigo-700 mb-2 uppercase tracking-wide">Índice</p>
         <div className="grid grid-cols-3 gap-1 text-xs text-indigo-600">
-          {['#flujo', '#endpoints', '#liveness', '#widget', '#ejemplos', '#errores', '#tecnologias'].map(h => (
+          {['#flujo', '#endpoints', '#liveness', '#antispoofing', '#widget', '#ejemplos', '#errores', '#tecnologias'].map(h => (
             <a key={h} href={h} className="hover:underline">{h}</a>
           ))}
         </div>
@@ -230,6 +230,84 @@ curl -X POST https://api.tudominio.com/v1/faces/authenticate/user123 \\
                 <li><code className="bg-white px-1 rounded border">spoofing_score</code> — 0–1, score de anti-spoofing (mayor = más real)</li>
               </ul>
             </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Anti-spoofing ─────────────────────────────────────────────────── */}
+      <Section title="Anti-spoofing (fotos, impresiones y pantallas)" id="antispoofing">
+        <div className="space-y-4 pt-2 text-sm text-slate-600">
+          <p>
+            El anti-spoofing detecta ataques de <strong>presentación</strong>: una foto impresa, una foto o video
+            reproducido en la pantalla de otro dispositivo (celular, tablet, monitor), o una máscara. Corre en el
+            servidor con <strong>MiniFASNet</strong> (vía DeepFace, <code className="bg-slate-100 px-1 rounded border">anti_spoofing=True</code>)
+            sobre cada imagen recibida — el widget y el iframe no necesitan lógica adicional, la protección ya viene incluida.
+          </p>
+
+          <div className="bg-slate-50 rounded-lg p-4 space-y-1 text-xs text-slate-600">
+            <p className="font-semibold text-slate-700">Dos interruptores, dos niveles</p>
+            <ul className="space-y-1 mt-1">
+              <li><strong>Global</strong> (todo el servidor) — variable <code className="bg-white px-1 rounded border">ANTI_SPOOFING_ENABLED</code> en el <code className="bg-white px-1 rounded border">.env</code>.</li>
+              <li><strong>Por tenant</strong> — campo <code className="bg-white px-1 rounded border">anti_spoofing_enabled</code>, editable desde Panel admin → tenant → <em>Seguridad y Límites</em> → Editar, o vía API.</li>
+            </ul>
+          </div>
+
+          <div className="border border-slate-200 rounded-lg p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Activar/desactivar por tenant vía API</p>
+            <Code lang="bash">{`curl -X PATCH https://TU_SERVIDOR/v1/admin/tenants/{tenant_id} \\
+  -H "Content-Type: application/json" \\
+  -d '{"anti_spoofing_enabled": true}'`}</Code>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="border border-blue-200 rounded-lg p-4 space-y-1">
+              <p className="text-sm font-semibold text-blue-700">Durante el enrolamiento</p>
+              <p className="text-xs text-slate-500">
+                Solo depende del switch <strong>global</strong>. Si detecta spoof, el servidor responde{' '}
+                <code className="bg-slate-100 px-1 rounded border">422</code> de inmediato — &quot;La imagen no parece ser
+                un rostro real&quot; — y no guarda el embedding. No hay excepción por tenant aquí.
+              </p>
+            </div>
+            <div className="border border-violet-200 rounded-lg p-4 space-y-1">
+              <p className="text-sm font-semibold text-violet-700">Durante la autenticación</p>
+              <p className="text-xs text-slate-500">
+                Activo solo si <strong>global Y tenant</strong> están en <code className="bg-slate-100 px-1 rounded border">true</code>.
+                Si falla y <strong>no</strong> hubo liveness en esa misma solicitud, bloquea (<code className="bg-slate-100 px-1 rounded border">verified: false</code>,{' '}
+                <code className="bg-slate-100 px-1 rounded border">fraud_detected: true</code>) aunque la cara coincida.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+            <p className="font-semibold">⚠ Falsos positivos cuando ya se validó liveness</p>
+            <p className="mt-1">
+              Si el usuario ya pasó por el challenge de liveness (pasivo con <code className="bg-white px-1 rounded border">X-Challenge-Id</code>{' '}
+              o activo con <code className="bg-white px-1 rounded border">X-Active-Liveness: true</code>) en la misma autenticación,
+              un resultado &quot;fake&quot; del anti-spoofing se trata como posible falso positivo (cara ladeada durante el
+              movimiento, blur) y se <strong>permite</strong> — solo queda registrado en el log del servidor. Por eso el widget
+              con liveness activo tiene menos rechazos falsos que la API directa sin liveness.
+            </p>
+          </div>
+
+          <div className="bg-slate-50 rounded-lg p-4 text-xs text-slate-600">
+            <p className="font-semibold text-slate-700 mb-1">En el iframe específicamente</p>
+            <p>
+              No hay parámetro de URL para anti-spoofing — se controla 100% desde el tenant (panel o API), como se explicó
+              arriba. Lo único que puedes ajustar desde el widget es <strong>cómo</strong> se valida presencia real, usando{' '}
+              <code className="bg-white px-1 rounded border">mode=liveness</code> o dejando que el flujo de autenticación
+              normal (<code className="bg-white px-1 rounded border">mode=auth</code>) haga el reto de movimiento de cabeza
+              automáticamente — reduce los falsos positivos del anti-spoofing tal como se describe arriba.
+            </p>
+          </div>
+
+          <div className="bg-slate-50 rounded-lg p-4 text-xs text-slate-600">
+            <p className="font-semibold text-slate-700 mb-1">Precisión del detector</p>
+            <p>
+              La calidad del anti-spoofing depende del detector de rostro configurado en{' '}
+              <code className="bg-white px-1 rounded border">DEEPFACE_DETECTOR</code>: <code className="bg-white px-1 rounded border">opencv</code> es
+              rápido pero recorta el rostro de forma imprecisa (más falsos positivos/negativos); <code className="bg-white px-1 rounded border">yunet</code> (usado
+              en este servidor) y <code className="bg-white px-1 rounded border">retinaface</code> son más precisos a costa de más latencia.
+            </p>
           </div>
         </div>
       </Section>
